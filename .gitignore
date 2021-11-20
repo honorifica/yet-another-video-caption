@@ -1,2 +1,4 @@
 data/*
 video
+*.pyc
+tmp*
