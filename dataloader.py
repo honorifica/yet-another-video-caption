@@ -53,8 +53,6 @@ class VideoDataset(Dataset):
         else:
             ix += 17251
 
-        print("ix", ix)
-
         fc_feat = []
         for dir in self.feats_dir:
             fc_feat.append(np.load(os.path.join(dir, 'G_%i.npy' % (ix))))

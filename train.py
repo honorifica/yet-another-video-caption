@@ -13,6 +13,7 @@ from misc.rewards import get_self_critical_reward, init_cider_scorer
 from models import DecoderRNN, EncoderRNN, S2VTAttModel, S2VTModel
 from torch import nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
@@ -29,7 +30,9 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
         else:
             sc_flag = False
 
-        for data in loader:
+        total_loss = 0
+
+        for data in tqdm(loader):
             torch.cuda.synchronize()
             fc_feats = data['fc_feats'].cuda()
             labels = data['labels'].cuda()
@@ -44,7 +47,6 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
                     fc_feats, mode='inference', opt=opt)
                 reward = get_self_critical_reward(model, fc_feats, data,
                                                   seq_preds)
-                print(reward.shape)
                 loss = rl_crit(seq_probs, seq_preds,
                                torch.from_numpy(reward).float().cuda())
 
@@ -55,12 +57,15 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
             torch.cuda.synchronize()
             iteration += 1
 
-            if not sc_flag:
-                print("iter %d (epoch %d), train_loss = %.6f" %
-                      (iteration, epoch, train_loss))
-            else:
-                print("iter %d (epoch %d), avg_reward = %.6f" %
-                      (iteration, epoch, np.mean(reward[:, 0])))
+            # if not sc_flag:
+            #     print("iter %d (epoch %d), train_loss = %.6f" %
+            #           (iteration, epoch, train_loss))
+            #     total_loss += train_loss
+            # else:
+            #     print("iter %d (epoch %d), avg_reward = %.6f" %
+            #           (iteration, epoch, np.mean(reward[:, 0])))
+
+        print("loss ", train_loss / len(loader))
 
         if epoch % opt["save_checkpoint_every"] == 0:
             model_path = os.path.join(opt["checkpoint_path"],
@@ -75,7 +80,8 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
 
 def main(opt):
     dataset = VideoDataset(opt, 'train')
-    dataloader = DataLoader(dataset, batch_size=opt["batch_size"], shuffle=True)
+    dataloader = DataLoader(
+        dataset, batch_size=opt["batch_size"], shuffle=True)
     opt["vocab_size"] = dataset.get_vocab_size()
     if opt["model"] == 'S2VTModel':
         model = S2VTModel(

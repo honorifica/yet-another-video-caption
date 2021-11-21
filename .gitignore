@@ -2,3 +2,4 @@ data/*
 video
 *.pyc
 tmp*
+dataset/*
