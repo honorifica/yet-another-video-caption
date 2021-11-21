@@ -41,7 +41,7 @@ def test(model, crit, dataset, vocab, opt):
         labels = data['labels'].cuda()
         masks = data['masks'].cuda()
         video_ids = data['video_ids']
-      
+
         # forward the model to also get generated samples for each image
         with torch.no_grad():
             seq_probs, seq_preds = model(
@@ -53,7 +53,12 @@ def test(model, crit, dataset, vocab, opt):
             video_id = video_ids[k]
             samples[video_id] = [{'image_id': video_id, 'caption': sent}]
 
-    print(samples)
+    result = {"predictions": samples}
+
+    fp = open("result.json", "w")
+    json.dump(result, fp)
+    fp.close()
+    print("已完成！结果输出到 result.json")
 
     # 以下代码在 win10 上无法正常运行
     # with suppress_stdout_stderr():
