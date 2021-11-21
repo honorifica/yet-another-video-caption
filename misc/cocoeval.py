@@ -63,7 +63,6 @@ class COCOScorer(object):
             gts[ID] = GT[ID]
             res[ID] = RES[ID]
         tokenizer = PTBTokenizer()
-        print(gts)
         gts = tokenizer.tokenize(gts)
         res = tokenizer.tokenize(res)
 
@@ -83,17 +82,18 @@ class COCOScorer(object):
         # =================================================
         eval = {}
         for scorer, method in scorers:
-            print('computing %s score...' % (scorer.method()))
+            t = scorer.method()
+            # print('computing %s score...' % (t))
             score, scores = scorer.compute_score(gts, res)
             if type(method) == list:
                 for sc, scs, m in zip(score, scores, method):
                     self.setEval(sc, m)
                     self.setImgToEvalImgs(scs, IDs, m)
-                    print("%s: %0.3f" % (m, sc))
+                    # print("%s: %0.3f" % (m, sc))
             else:
                 self.setEval(score, method)
                 self.setImgToEvalImgs(scores, IDs, method)
-                print("%s: %0.3f" % (method, score))
+                # print("%s: %0.3f" % (method, score))
 
         # for metric, score in self.eval.items():
         #    print '%s: %.3f'%(metric, score)
@@ -119,7 +119,8 @@ def score(ref, sample):
     ]
     final_scores = {}
     for scorer, method in scorers:
-        print('computing %s score with COCO-EVAL...' % (scorer.method()))
+        t = scorer.method()
+        print('computing %s score with COCO-EVAL...' % (t))
         score, scores = scorer.compute_score(ref, sample)
         if type(score) == list:
             for m, s in zip(method, score):

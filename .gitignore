@@ -5,3 +5,4 @@ tmp*
 dataset/*
 resnet152_video
 result.json
+result/**
