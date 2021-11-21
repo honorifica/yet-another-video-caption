@@ -44,7 +44,7 @@ json.dump(export_json, fp)
 fp.close()
 print("已完成 :)")
 print("步骤2：拷贝视频文件（目前仅拷贝 video，忽略多模态信息）")
-vl1 = test_video_filenames[:NVAL]
+vl1 = test_video_filenames[:NTEST]
 vl2 = [i + ".avi" for i in train_video_names]
 cleanDir("data/video")
 for i in tqdm(vl1):
