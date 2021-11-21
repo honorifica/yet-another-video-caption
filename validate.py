@@ -1,6 +1,7 @@
 import json
 import os
 import argparse
+from pandas.core.frame import DataFrame
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -32,7 +33,27 @@ def test(model, crit, dataset, vocab, opt):
     scorer = COCOScorer()
     gt_dataframe = json_normalize(
         json.load(open(opt["input_json"]))['sentences'])
-    gts = convert_data_to_coco_scorer_format(gt_dataframe)
+
+    # gt_dataframe_0 = json_normalize(
+    #     json.load(open(opt["input_json"]))['videos'])
+    # print()
+    # target_ids = list(gt_dataframe_0[gt_dataframe_0.split == 'val']['id'])
+    # total_ids = list(gt_dataframe_0['id'])
+    # vid2split = dict((("G_%05d" % i, 0) for i in total_ids))
+    # print(vid2split)
+    # for i in target_ids:
+    #     vid2split["G_%05d" % i] = 1
+
+    # gtdf = []
+    # for ii, i in gt_dataframe.iterrows():
+    #     if vid2split[i["video_id"]] == 1:
+    #         gtdf.append(i)
+    # gtdf = DataFrame(gtdf)
+    # print(gtdf)
+
+    gtdf = gt_dataframe
+
+    gts = convert_data_to_coco_scorer_format(gtdf)
     results = []
     samples = {}
     for data in loader:
@@ -53,12 +74,9 @@ def test(model, crit, dataset, vocab, opt):
             video_id = video_ids[k]
             samples[video_id] = [{'image_id': video_id, 'caption': sent}]
 
-    result = {"predictions": samples}
-
     # 以下代码原版在 win10 上无法正常运行，已禁用部分功能
     # 需要 JAVA
-    with suppress_stdout_stderr():
-        valid_score = scorer.score(gts, samples, samples.keys())
+    valid_score = scorer.score(gts, samples, samples.keys())
     results.append(valid_score)
     print(valid_score)
 
@@ -95,7 +113,7 @@ def main(opt):
     test(model, crit, dataset, dataset.get_vocab(), opt)
 
 
-if __name__ == '__main__':
+def work():
     parser = argparse.ArgumentParser()
     parser.add_argument('--recover_opt', type=str, required=True,
                         help='recover train opts from saved opt_json')
@@ -124,3 +142,7 @@ if __name__ == '__main__':
         opt[k] = v
     os.environ['CUDA_VISIBLE_DEVICES'] = opt["gpu"]
     main(opt)
+
+
+if __name__ == '__main__':
+    work()
