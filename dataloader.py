@@ -25,6 +25,7 @@ class VideoDataset(Dataset):
         # load the json file which contains information about the dataset
         self.captions = json.load(open(opt["caption_json"]))
         info = json.load(open(opt["info_json"]))
+        self.info = info
         self.ix_to_word = info['ix_to_word']
         self.word_to_ix = info['word_to_ix']
         print('vocab size is ', len(self.ix_to_word))
@@ -45,13 +46,15 @@ class VideoDataset(Dataset):
         """This function returns a tuple that is further passed to collate_fn
         """
         # which part of data to load
-        if self.mode == 'val':
-            ix += len(self.splits['train']) + 17251
-        elif self.mode == 'test':
-            ix = ix + len(self.splits['train']) + \
-                17251 + len(self.splits['val'])
-        else:
-            ix += 17251
+        # if self.mode == 'val':
+        #     ix += len(self.splits['train']) + 17251
+        # elif self.mode == 'test':
+        #     ix = ix + len(self.splits['train']) + \
+        #         17251 + len(self.splits['val'])
+        # else:
+        #     ix += 17251
+
+        ix = int(self.info["videos"][self.mode][ix])
 
         fc_feat = []
         for dir in self.feats_dir:
