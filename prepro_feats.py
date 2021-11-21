@@ -42,8 +42,8 @@ def extract_feats(params, model, load_image_fn):
     print("save video feats to %s" % (dir_fc))
     video_list = glob.glob(os.path.join(params['video_path'], '*.avi'))
     for video in tqdm(video_list):
-        video_id = video.split("/")[-1].split(".")[0]
-        dst = params['model'] + '_' + video_id
+        video_id = video.split("/")[-1].split(".")[-1].split("\\")[-1][0]
+        dst = params['model'] + '/' + video_id
         extract_frames(video, dst)
 
         image_list = sorted(glob.glob(os.path.join(dst, '*.jpg')))
@@ -58,7 +58,7 @@ def extract_feats(params, model, load_image_fn):
             fc_feats = model(images.cuda()).squeeze()
         img_feats = fc_feats.cpu().numpy()
         # Save the inception features
-        outfile = os.path.join(dir_fc, video_id.split("\\")[1] + '.npy')
+        outfile = os.path.join(dir_fc, video_id + '.npy')
         np.save(outfile, img_feats)
         # cleanup
         shutil.rmtree(dst)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
                         default='data/video', help='path to video dataset')
     parser.add_argument("--model", dest="model", type=str, default='resnet152',
                         help='the CNN model you want to use to extract_feats')
-    
+
     args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     params = vars(args)
@@ -108,6 +108,6 @@ if __name__ == '__main__':
 
     model.last_linear = utils.Identity()
     model = nn.DataParallel(model)
-    
+
     model = model.cuda()
     extract_feats(params, model, load_image_fn)
