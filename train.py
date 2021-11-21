@@ -16,22 +16,18 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
+def train(loader, loader_v, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
     model.train()
     #model = nn.DataParallel(model)
     for epoch in range(opt["epochs"]):
         lr_scheduler.step()
 
         iteration = 0
-        # If start self crit training
-        if opt["self_crit_after"] != -1 and epoch >= opt["self_crit_after"]:
-            sc_flag = True
-            init_cider_scorer(opt["cached_tokens"])
-        else:
-            sc_flag = False
+        sc_flag = False
+
+        print("新轮次", epoch, "正在训练……")
 
         total_loss = 0
-
         for data in tqdm(loader):
             torch.cuda.synchronize()
             fc_feats = data['fc_feats'].cuda()
@@ -39,16 +35,8 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
             masks = data['masks'].cuda()
 
             optimizer.zero_grad()
-            if not sc_flag:
-                seq_probs, _ = model(fc_feats, labels, 'train')
-                loss = crit(seq_probs, labels[:, 1:], masks[:, 1:])
-            else:
-                seq_probs, seq_preds = model(
-                    fc_feats, mode='inference', opt=opt)
-                reward = get_self_critical_reward(model, fc_feats, data,
-                                                  seq_preds)
-                loss = rl_crit(seq_probs, seq_preds,
-                               torch.from_numpy(reward).float().cuda())
+            seq_probs, _ = model(fc_feats, labels, 'train')
+            loss = crit(seq_probs, labels[:, 1:], masks[:, 1:])
 
             loss.backward()
             clip_grad_value_(model.parameters(), opt['grad_clip'])
@@ -56,16 +44,9 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
             train_loss = loss.item()
             torch.cuda.synchronize()
             iteration += 1
+            total_loss += train_loss
 
-            # if not sc_flag:
-            #     print("iter %d (epoch %d), train_loss = %.6f" %
-            #           (iteration, epoch, train_loss))
-            #     total_loss += train_loss
-            # else:
-            #     print("iter %d (epoch %d), avg_reward = %.6f" %
-            #           (iteration, epoch, np.mean(reward[:, 0])))
-
-        print("loss ", train_loss / len(loader))
+        print("  轮次", epoch, " train_loss =", total_loss / len(loader))
 
         if epoch % opt["save_checkpoint_every"] == 0:
             model_path = os.path.join(opt["checkpoint_path"],
@@ -73,15 +54,37 @@ def train(loader, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
             model_info_path = os.path.join(opt["checkpoint_path"],
                                            'model_score.txt')
             torch.save(model.state_dict(), model_path)
-            print("model saved to %s" % (model_path))
+            print("模型保存到 %s" % (model_path))
             with open(model_info_path, 'a') as f:
-                f.write("model_%d, loss: %.6f\n" % (epoch, train_loss))
+                f.write("model_%d, loss: %.6f\n" % (epoch, total_loss))
+
+        total_loss_v = 0
+        for data in tqdm(loader_v):
+            torch.cuda.synchronize()
+            fc_feats = data['fc_feats'].cuda()
+            labels = data['labels'].cuda()
+            masks = data['masks'].cuda()
+
+            optimizer.zero_grad()
+            seq_probs, _ = model(fc_feats, labels, 'train')
+            loss = crit(seq_probs, labels[:, 1:], masks[:, 1:])
+
+            train_loss = loss.item()
+            torch.cuda.synchronize()
+            iteration += 1
+
+            total_loss_v += train_loss
+
+        print("  轮次", epoch, " val_loss =", total_loss_v / len(loader_v))
 
 
 def main(opt):
     dataset = VideoDataset(opt, 'train')
     dataloader = DataLoader(
         dataset, batch_size=opt["batch_size"], shuffle=True)
+    dataset_v = VideoDataset(opt, 'val')
+    dataloader_v = DataLoader(
+        dataset_v, batch_size=opt["batch_size"], shuffle=True)
     opt["vocab_size"] = dataset.get_vocab_size()
     if opt["model"] == 'S2VTModel':
         model = S2VTModel(
@@ -123,7 +126,7 @@ def main(opt):
         step_size=opt["learning_rate_decay_every"],
         gamma=opt["learning_rate_decay_rate"])
 
-    train(dataloader, model, crit, optimizer, exp_lr_scheduler, opt, rl_crit)
+    train(dataloader, dataloader_v, model, crit, optimizer, exp_lr_scheduler, opt, rl_crit)
 
 
 if __name__ == '__main__':

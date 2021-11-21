@@ -3,3 +3,4 @@ video
 *.pyc
 tmp*
 dataset/*
+resnet152_video
