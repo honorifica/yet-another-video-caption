@@ -95,7 +95,14 @@ def validate(model, crit, dataset, vocab, opt):
     # 需要 JAVA
     valid_score = scorer.score(gts, samples, samples.keys())
     results.append(valid_score)
-    print(valid_score)
+
+    sb4 = valid_score["Bleu_4"]
+    sme = valid_score["METEOR"]
+    sro = valid_score["ROUGE_L"]
+    sci = valid_score["CIDEr"]
+    sss = sb4 + sme + sro + sci
+    print("  验证集 coco 得分：", "%.6f = %.6f + %.6f + %.6f + %.6f" %
+          (sss, sb4, sme, sro, sci))
 
     if not os.path.exists(opt["results_path"]):
         os.makedirs(opt["results_path"])

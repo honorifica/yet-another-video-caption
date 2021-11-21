@@ -50,8 +50,6 @@ class suppress_stdout_stderr:
 
 
 class COCOScorer(object):
-    def __init__(self):
-        print('init COCO-EVAL scorer')
 
     def score(self, GT, RES, IDs):
         self.eval = {}

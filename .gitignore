@@ -5,6 +5,6 @@ tmp*
 dataset/*
 resnet152_video
 result.json
-result/**
+results/**
 results/S2VTAttModel.json
 results/scores.txt
