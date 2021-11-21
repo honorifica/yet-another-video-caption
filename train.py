@@ -15,11 +15,103 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import json
+import os
+import argparse
+from pandas.core.frame import DataFrame
+import torch
+from torch import nn
+from torch.autograd import Variable
+from torch.utils.data import DataLoader
+from models import EncoderRNN, DecoderRNN, S2VTAttModel, S2VTModel
+from dataloader import VideoDataset
+import misc.utils as utils
+from misc.cocoeval import suppress_stdout_stderr, COCOScorer
 
-def train(loader, loader_v, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
-    model.train()
+from pandas.io.json import json_normalize
+
+
+def convert_data_to_coco_scorer_format(data_frame):
+    gts = {}
+    for row in zip(data_frame["caption"], data_frame["video_id"]):
+        if row[1] in gts:
+            gts[row[1]].append(
+                {'image_id': row[1], 'cap_id': len(gts[row[1]]), 'caption': row[0]})
+        else:
+            gts[row[1]] = []
+            gts[row[1]].append(
+                {'image_id': row[1], 'cap_id': len(gts[row[1]]), 'caption': row[0]})
+    return gts
+
+
+def validate(model, crit, dataset, vocab, opt):
+    model.eval()
+    loader = DataLoader(dataset, batch_size=opt["batch_size"], shuffle=True)
+    scorer = COCOScorer()
+    gt_dataframe = json_normalize(
+        json.load(open(opt["input_json"]))['sentences'])
+
+    # gt_dataframe_0 = json_normalize(
+    #     json.load(open(opt["input_json"]))['videos'])
+    # print()
+    # target_ids = list(gt_dataframe_0[gt_dataframe_0.split == 'val']['id'])
+    # total_ids = list(gt_dataframe_0['id'])
+    # vid2split = dict((("G_%05d" % i, 0) for i in total_ids))
+    # print(vid2split)
+    # for i in target_ids:
+    #     vid2split["G_%05d" % i] = 1
+
+    # gtdf = []
+    # for ii, i in gt_dataframe.iterrows():
+    #     if vid2split[i["video_id"]] == 1:
+    #         gtdf.append(i)
+    # gtdf = DataFrame(gtdf)
+    # print(gtdf)
+
+    gtdf = gt_dataframe
+
+    gts = convert_data_to_coco_scorer_format(gtdf)
+    results = []
+    samples = {}
+    for data in loader:
+        # forward the model to get loss
+        fc_feats = data['fc_feats'].cuda()
+        labels = data['labels'].cuda()
+        masks = data['masks'].cuda()
+        video_ids = data['video_ids']
+
+        # forward the model to also get generated samples for each image
+        with torch.no_grad():
+            seq_probs, seq_preds = model(
+                fc_feats, mode='inference', opt=opt)
+
+        sents = utils.decode_sequence(vocab, seq_preds)
+
+        for k, sent in enumerate(sents):
+            video_id = video_ids[k]
+            samples[video_id] = [{'image_id': video_id, 'caption': sent}]
+
+    # 以下代码原版在 win10 上无法正常运行，已禁用部分功能
+    # 需要 JAVA
+    valid_score = scorer.score(gts, samples, samples.keys())
+    results.append(valid_score)
+    print(valid_score)
+
+    if not os.path.exists(opt["results_path"]):
+        os.makedirs(opt["results_path"])
+
+    with open(os.path.join(opt["results_path"], "scores.txt"), 'a') as scores_table:
+        scores_table.write(json.dumps(results[0]) + "\n")
+    with open(os.path.join(opt["results_path"],
+                           opt["model"].split("/")[-1].split('.')[0] + ".json"), 'w') as prediction_results:
+        json.dump({"predictions": samples, "scores": valid_score},
+                  prediction_results)
+
+
+def train(loader, loader_v, dsv, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
     #model = nn.DataParallel(model)
     for epoch in range(opt["epochs"]):
+        model.train()
         lr_scheduler.step()
 
         iteration = 0
@@ -77,6 +169,9 @@ def train(loader, loader_v, model, crit, optimizer, lr_scheduler, opt, rl_crit=N
 
         print("  轮次", epoch, " val_loss =", total_loss_v / len(loader_v))
 
+        validate(model, utils.LanguageModelCriterion(),
+                 dsv, dsv.get_vocab(), opt)
+
 
 def main(opt):
     dataset = VideoDataset(opt, 'train')
@@ -126,7 +221,8 @@ def main(opt):
         step_size=opt["learning_rate_decay_every"],
         gamma=opt["learning_rate_decay_rate"])
 
-    train(dataloader, dataloader_v, model, crit, optimizer, exp_lr_scheduler, opt, rl_crit)
+    train(dataloader, dataloader_v, dataset_v,  model, crit,
+          optimizer, exp_lr_scheduler, opt, rl_crit)
 
 
 if __name__ == '__main__':

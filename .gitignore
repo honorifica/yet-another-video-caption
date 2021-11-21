@@ -6,3 +6,5 @@ dataset/*
 resnet152_video
 result.json
 result/**
+results/S2VTAttModel.json
+results/scores.txt

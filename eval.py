@@ -94,7 +94,6 @@ def main(opt):
     #model = nn.DataParallel(model)
     # Setup the model
     model.load_state_dict(torch.load(opt["saved_model"]))
-    crit = utils.LanguageModelCriterion()
 
     test(model, crit, dataset, dataset.get_vocab(), opt)
 

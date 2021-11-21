@@ -86,6 +86,7 @@ def parse_opt():
         help='dim of features of video frames')
 
     # Optimization: General
+    parser.add_argument('--results_path', type=str, default='results/')
 
     parser.add_argument(
         '--epochs', type=int, default=6001, help='number of epochs')
