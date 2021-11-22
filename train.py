@@ -89,26 +89,25 @@ def validate(model, crit, dataset, vocab, opt):
                   prediction_results)
 
 
-def train(loader, loader_v, dsv, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
+def train(dataloader_train, dataloader_val, dataset_val, model, crit, optimizer, lr_scheduler, opt, rl_crit=None):
     #model = nn.DataParallel(model)
     for epoch in range(opt["epochs"]):
         model.train()
         lr_scheduler.step()
 
         iteration = 0
-        sc_flag = False
 
         print("新轮次", epoch, "正在训练……")
 
-        total_loss = 0
-        for data in tqdm(loader):
+        total_loss_train = 0
+        for data in tqdm(dataloader_train):
             torch.cuda.synchronize()
-            fc_feats = data['fc_feats'].cuda()
+            input_features = data['fc_feats'].cuda()
             labels = data['labels'].cuda()
             masks = data['masks'].cuda()
 
             optimizer.zero_grad()
-            seq_probs, _ = model(fc_feats, labels, 'train')
+            seq_probs, _ = model(input_features, labels, 'train')
             loss = crit(seq_probs, labels[:, 1:], masks[:, 1:])
 
             loss.backward()
@@ -117,9 +116,9 @@ def train(loader, loader_v, dsv, model, crit, optimizer, lr_scheduler, opt, rl_c
             train_loss = loss.item()
             torch.cuda.synchronize()
             iteration += 1
-            total_loss += train_loss
+            total_loss_train += train_loss
 
-        print("  轮次", epoch, " train_loss =", total_loss / len(loader))
+        print("  轮次", epoch, " train_loss =", total_loss_train / len(dataloader_train))
 
         if epoch % opt["save_checkpoint_every"] == 0:
             model_path = os.path.join(opt["checkpoint_path"],
@@ -129,29 +128,29 @@ def train(loader, loader_v, dsv, model, crit, optimizer, lr_scheduler, opt, rl_c
             torch.save(model.state_dict(), model_path)
             print("模型保存到 %s" % (model_path))
             with open(model_info_path, 'a') as f:
-                f.write("model_%d, loss: %.6f\n" % (epoch, total_loss))
+                f.write("model_%d, loss: %.6f\n" % (epoch, total_loss_train))
 
-        total_loss_v = 0
-        for data in tqdm(loader_v):
+        total_loss_val = 0
+        for data in tqdm(dataloader_val):
             torch.cuda.synchronize()
-            fc_feats = data['fc_feats'].cuda()
+            input_features = data['fc_feats'].cuda()
             labels = data['labels'].cuda()
             masks = data['masks'].cuda()
 
             optimizer.zero_grad()
-            seq_probs, _ = model(fc_feats, labels, 'train')
+            seq_probs, _ = model(input_features, labels, 'train')
             loss = crit(seq_probs, labels[:, 1:], masks[:, 1:])
 
             train_loss = loss.item()
             torch.cuda.synchronize()
             iteration += 1
 
-            total_loss_v += train_loss
+            total_loss_val += train_loss
 
-        print("  轮次", epoch, " val_loss =", total_loss_v / len(loader_v))
+        print("  轮次", epoch, " val_loss =", total_loss_val / len(dataloader_val))
 
         validate(model, utils.LanguageModelCriterion(),
-                 dsv, dsv.get_vocab(), opt)
+                 dataset_val, dataset_val.get_vocab(), opt)
 
 
 def main(opt):

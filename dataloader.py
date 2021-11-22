@@ -56,17 +56,17 @@ class VideoDataset(Dataset):
 
         ix = int(self.info["videos"][self.mode][ix])
 
-        fc_feat = []
+        input_feature = []
         for dir in self.feats_dir:
-            fc_feat.append(np.load(os.path.join(
+            input_feature.append(np.load(os.path.join(
                 dir, 'G_%05d.npy' % (ix)), allow_pickle=True))
-        fc_feat = np.concatenate(fc_feat, axis=1)
+        input_feature = np.concatenate(input_feature, axis=1)
         if self.with_c3d == 1:
             c3d_feat = np.load(os.path.join(
                 self.c3d_feats_dir, 'G_%05d.npy' % (ix)))
             c3d_feat = np.mean(c3d_feat, axis=0, keepdims=True)
-            fc_feat = np.concatenate(
-                (fc_feat, np.tile(c3d_feat, (fc_feat.shape[0], 1))), axis=1)
+            input_feature = np.concatenate(
+                (input_feature, np.tile(c3d_feat, (input_feature.shape[0], 1))), axis=1)
         label = np.zeros(self.max_len)
         mask = np.zeros(self.max_len)
         if self.mode == 'test':
@@ -83,13 +83,13 @@ class VideoDataset(Dataset):
                 gts[i, j] = self.word_to_ix[w]
 
         # random select a caption for this video
-        cap_ix = random.randint(0, len(captions) - 1)
-        label = gts[cap_ix]
+        caption_idx = random.randint(0, len(captions) - 1)
+        label = gts[caption_idx]
         non_zero = (label == 0).nonzero()
         mask[:int(non_zero[0][0]) + 1] = 1
 
         data = {}
-        data['fc_feats'] = torch.from_numpy(fc_feat).type(torch.FloatTensor)
+        data['fc_feats'] = torch.from_numpy(input_feature).type(torch.FloatTensor)
         data['labels'] = torch.from_numpy(label).type(torch.LongTensor)
         data['masks'] = torch.from_numpy(mask).type(torch.FloatTensor)
         data['gts'] = torch.from_numpy(gts).long()
