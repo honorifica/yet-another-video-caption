@@ -31,70 +31,61 @@ from misc.cocoeval import suppress_stdout_stderr, COCOScorer
 from pandas.io.json import json_normalize
 
 
-def convert_data_to_coco_scorer_format(data_frame):
-    gts = {}
+def convertToCocoFormat(data_frame):
+    answers = {}
     for row in zip(data_frame["caption"], data_frame["video_id"]):
-        if row[1] in gts:
-            gts[row[1]].append(
-                {'image_id': row[1], 'cap_id': len(gts[row[1]]), 'caption': row[0]})
+        if row[1] in answers:
+            answers[row[1]].append(
+                {'image_id': row[1], 'cap_id': len(answers[row[1]]), 'caption': row[0]})
         else:
-            gts[row[1]] = []
-            gts[row[1]].append(
-                {'image_id': row[1], 'cap_id': len(gts[row[1]]), 'caption': row[0]})
-    return gts
+            answers[row[1]] = []
+            answers[row[1]].append(
+                {'image_id': row[1], 'cap_id': len(answers[row[1]]), 'caption': row[0]})
+    return answers
 
 
 def validate(model, crit, dataset, vocab, opt):
     model.eval()
     loader = DataLoader(dataset, batch_size=opt["batch_size"], shuffle=True)
     scorer = COCOScorer()
-    gt_dataframe = json_normalize(
+    answer_dataframe = json_normalize(
         json.load(open(opt["input_json"]))['sentences'])
 
-    gtdf = gt_dataframe
-
-    gts = convert_data_to_coco_scorer_format(gtdf)
-    results = []
-    samples = {}
+    answers = convertToCocoFormat(answer_dataframe)
+    scores = []
+    seq_outputs = {}
     for data in loader:
-        # forward the model to get loss
-        fc_feats = data['fc_feats'].cuda()
-        labels = data['labels'].cuda()
-        masks = data['masks'].cuda()
+        input_features = data['fc_feats'].cuda()
         video_ids = data['video_ids']
-
-        # forward the model to also get generated samples for each image
         with torch.no_grad():
             seq_probs, seq_preds = model(
-                fc_feats, mode='inference', opt=opt)
+                input_features, mode='inference', opt=opt)
 
-        sents = utils.decode_sequence(vocab, seq_preds)
+        seq_decodeds = utils.decode_sequence(vocab, seq_preds)
 
-        for k, sent in enumerate(sents):
-            video_id = video_ids[k]
-            samples[video_id] = [{'image_id': video_id, 'caption': sent}]
+        for idx, seq in enumerate(seq_decodeds):
+            video_id = video_ids[idx]
+            seq_outputs[video_id] = [{'image_id': video_id, 'caption': seq}]
 
-    # 以下代码原版在 win10 上无法正常运行，已禁用部分功能
-    # 需要 JAVA
-    valid_score = scorer.score(gts, samples, samples.keys())
-    results.append(valid_score)
+    valid_score = scorer.score(answers, seq_outputs, seq_outputs.keys())
+    scores.append(valid_score)
 
-    sb4 = valid_score["Bleu_4"]
-    sme = valid_score["METEOR"]
-    sro = valid_score["ROUGE_L"]
-    sci = valid_score["CIDEr"]
-    sss = sb4 + sme + sro + sci
+    score_bleu4 = valid_score["Bleu_4"]
+    score_meteor = valid_score["METEOR"]
+    score_rougel = valid_score["ROUGE_L"]
+    score_cider = valid_score["CIDEr"]
+    score_sum = score_bleu4 + score_meteor + score_rougel + score_cider
     print("  验证集 coco 得分：", "%.6f = %.6f + %.6f + %.6f + %.6f" %
-          (sss, sb4, sme, sro, sci))
+          (score_sum, score_bleu4, score_meteor, score_rougel, score_cider))
 
     if not os.path.exists(opt["results_path"]):
         os.makedirs(opt["results_path"])
 
     with open(os.path.join(opt["results_path"], "scores.txt"), 'a') as scores_table:
-        scores_table.write(json.dumps(results[0]) + "\n")
+        scores_table.write(json.dumps(scores[0]) + "\n")
     with open(os.path.join(opt["results_path"],
                            opt["model"].split("/")[-1].split('.')[0] + ".json"), 'w') as prediction_results:
-        json.dump({"predictions": samples, "scores": valid_score},
+        json.dump({"predictions": seq_outputs, "scores": valid_score},
                   prediction_results)
 
 
