@@ -164,13 +164,13 @@ def train(loader, loader_v, dsv, model, crit, optimizer, lr_scheduler, opt, rl_c
 
 
 def main(opt):
-    dataset = VideoDataset(opt, 'train')
-    dataloader = DataLoader(
-        dataset, batch_size=opt["batch_size"], shuffle=True)
-    dataset_v = VideoDataset(opt, 'val')
-    dataloader_v = DataLoader(
-        dataset_v, batch_size=opt["batch_size"], shuffle=True)
-    opt["vocab_size"] = dataset.get_vocab_size()
+    dataset_train = VideoDataset(opt, 'train')
+    dataloader_train = DataLoader(
+        dataset_train, batch_size=opt["batch_size"], shuffle=True)
+    dataset_val = VideoDataset(opt, 'val')
+    dataloader_val = DataLoader(
+        dataset_val, batch_size=opt["batch_size"], shuffle=True)
+    opt["vocab_size"] = dataset_train.get_vocab_size()
     if opt["model"] == 'S2VTModel':
         model = S2VTModel(
             opt["vocab_size"],
@@ -182,6 +182,7 @@ def main(opt):
             n_layers=opt['num_layers'],
             rnn_dropout_p=opt["rnn_dropout_p"])
     elif opt["model"] == "S2VTAttModel":
+        # 我们用的是这个！
         encoder = EncoderRNN(
             opt["dim_vid"],
             opt["dim_hidden"],
@@ -201,7 +202,7 @@ def main(opt):
         model = S2VTAttModel(encoder, decoder)
     model = model.cuda()
     crit = utils.LanguageModelCriterion()
-    rl_crit = utils.RewardCriterion()
+    crit_rl = utils.RewardCriterion()
     optimizer = optim.Adam(
         model.parameters(),
         lr=opt["learning_rate"],
@@ -211,8 +212,8 @@ def main(opt):
         step_size=opt["learning_rate_decay_every"],
         gamma=opt["learning_rate_decay_rate"])
 
-    train(dataloader, dataloader_v, dataset_v,  model, crit,
-          optimizer, exp_lr_scheduler, opt, rl_crit)
+    train(dataloader_train, dataloader_val, dataset_val,  model, crit,
+          optimizer, exp_lr_scheduler, opt, crit_rl)
 
 
 if __name__ == '__main__':

@@ -58,7 +58,8 @@ class VideoDataset(Dataset):
 
         fc_feat = []
         for dir in self.feats_dir:
-            fc_feat.append(np.load(os.path.join(dir, 'G_%05d.npy' % (ix))))
+            fc_feat.append(np.load(os.path.join(
+                dir, 'G_%05d.npy' % (ix)), allow_pickle=True))
         fc_feat = np.concatenate(fc_feat, axis=1)
         if self.with_c3d == 1:
             c3d_feat = np.load(os.path.join(
