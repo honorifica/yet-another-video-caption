@@ -26,7 +26,7 @@ def convert_data_to_coco_scorer_format(data_frame):
     return gts
 
 
-def test(model, crit, dataset, vocab, opt):
+def test(model, dataset, vocab, opt):
     model.eval()
     loader = DataLoader(dataset, batch_size=opt["batch_size"], shuffle=True)
     scorer = COCOScorer()
@@ -60,22 +60,6 @@ def test(model, crit, dataset, vocab, opt):
     fp.close()
     print("已完成！结果输出到 result.json")
 
-    # 以下代码在 win10 上无法正常运行
-    # with suppress_stdout_stderr():
-    #     valid_score = scorer.score(gts, samples, samples.keys())
-    # results.append(valid_score)
-    # print(valid_score)
-
-    # if not os.path.exists(opt["results_path"]):
-    #     os.makedirs(opt["results_path"])
-
-    # with open(os.path.join(opt["results_path"], "scores.txt"), 'a') as scores_table:
-    #     scores_table.write(json.dumps(results[0]) + "\n")
-    # with open(os.path.join(opt["results_path"],
-    #                        opt["model"].split("/")[-1].split('.')[0] + ".json"), 'w') as prediction_results:
-    #     json.dump({"predictions": samples, "scores": valid_score},
-    #               prediction_results)
-
 
 def main(opt):
     dataset = VideoDataset(opt, "test")
@@ -95,7 +79,7 @@ def main(opt):
     # Setup the model
     model.load_state_dict(torch.load(opt["saved_model"]))
 
-    test(model, crit, dataset, dataset.get_vocab(), opt)
+    test(model, dataset, dataset.get_vocab(), opt)
 
 
 if __name__ == '__main__':

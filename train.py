@@ -51,23 +51,6 @@ def validate(model, crit, dataset, vocab, opt):
     gt_dataframe = json_normalize(
         json.load(open(opt["input_json"]))['sentences'])
 
-    # gt_dataframe_0 = json_normalize(
-    #     json.load(open(opt["input_json"]))['videos'])
-    # print()
-    # target_ids = list(gt_dataframe_0[gt_dataframe_0.split == 'val']['id'])
-    # total_ids = list(gt_dataframe_0['id'])
-    # vid2split = dict((("G_%05d" % i, 0) for i in total_ids))
-    # print(vid2split)
-    # for i in target_ids:
-    #     vid2split["G_%05d" % i] = 1
-
-    # gtdf = []
-    # for ii, i in gt_dataframe.iterrows():
-    #     if vid2split[i["video_id"]] == 1:
-    #         gtdf.append(i)
-    # gtdf = DataFrame(gtdf)
-    # print(gtdf)
-
     gtdf = gt_dataframe
 
     gts = convert_data_to_coco_scorer_format(gtdf)
