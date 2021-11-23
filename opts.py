@@ -40,7 +40,7 @@ def parse_opt():
 
     # Model settings
     parser.add_argument(
-        "--model", type=str, default='S2VTModel', help="with model to use")
+        "--model", type=str, default='S2VTAttModel', help="with model to use")
 
     parser.add_argument(
         "--max_len",
@@ -56,10 +56,10 @@ def parse_opt():
     parser.add_argument(
         '--dim_hidden',
         type=int,
-        default=512,
+        default=1024,
         help='size of the rnn hidden layer')
     parser.add_argument(
-        '--num_layers', type=int, default=1, help='number of layers in the RNN')
+        '--num_layers', type=int, default=3, help='number of layers in the RNN')
     parser.add_argument(
         '--input_dropout_p',
         type=float,
@@ -91,7 +91,7 @@ def parse_opt():
     parser.add_argument(
         '--epochs', type=int, default=6001, help='number of epochs')
     parser.add_argument(
-        '--batch_size', type=int, default=128, help='minibatch size')
+        '--batch_size', type=int, default=64, help='minibatch size')
     parser.add_argument(
         '--grad_clip',
         type=float,
@@ -107,7 +107,7 @@ def parse_opt():
     )
 
     parser.add_argument(
-        '--learning_rate', type=float, default=4e-4, help='learning rate')
+        '--learning_rate', type=float, default=1e-4, help='learning rate')
 
     parser.add_argument(
         '--learning_rate_decay_every',
@@ -133,12 +133,12 @@ def parse_opt():
     parser.add_argument(
         '--save_checkpoint_every',
         type=int,
-        default=10,
+        default=5,
         help='how often to save a model checkpoint (in epoch)?')
     parser.add_argument(
         '--checkpoint_path',
         type=str,
-        default='save',
+        default='data/save',
         help='directory to store checkpointed models')
 
     parser.add_argument(

@@ -18,9 +18,9 @@ def cleanDir(filepath):
         os.mkdir(filepath)
 
 
-NTRAIN = 10
-NVAL = 3
-NTEST = 3
+NTRAIN = 3200
+NVAL = 200
+NTEST = 1000
 cleanDir('data')
 print("步骤1：扫描输入并生成 input.json")
 fp = open("dataset/train/info.json", "r")

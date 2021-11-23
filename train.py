@@ -148,9 +148,9 @@ def train(dataloader_train, dataloader_val, dataset_val, model, crit, optimizer,
             total_loss_val += train_loss
 
         print("  轮次", epoch, " val_loss =", total_loss_val / len(dataloader_val))
-
-        validate(model, utils.LanguageModelCriterion(),
-                 dataset_val, dataset_val.get_vocab(), opt)
+        if epoch % 5 == 0:
+            validate(model, utils.LanguageModelCriterion(),
+                     dataset_val, dataset_val.get_vocab(), opt)
 
 
 def main(opt):
